@@ -136,7 +136,7 @@ local Objects = Decode('Name,Size,Active,ClipsDescendants,AlwaysOnTop,ZIndexBeha
 local UI = Objects[1]
 
 function getData(songname)
-	local json = game:GetService("HttpService"):GetAsync("https://raw.githubusercontent.com/TheFakeFew/MidiJsons/main/"..songname..".json")
+	local json = game:GetService("HttpService"):GetAsync("https://raw.githubusercontent.com/Androphonomania/MidiJsons/main/"..songname..".json")
 	if(not json)then
 		return nil
 	end
