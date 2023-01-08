@@ -1,3 +1,5 @@
+--Made by TheFakeFew/foxynason
+
 local genv={}
 Decode =  function(str,t,props,classes,values,ICList,Model,CurPar,LastIns,split,RemoveAndSplit,InstanceList)
 	local tonum,table_remove,inst,parnt,comma,table_foreach = tonumber,table.remove,Instance.new,"Parent",",",
@@ -136,7 +138,7 @@ local Objects = Decode('Name,Size,Active,ClipsDescendants,AlwaysOnTop,ZIndexBeha
 local UI = Objects[1]
 
 function getData(songname)
-	local json = game:GetService("HttpService"):GetAsync("https://raw.githubusercontent.com/Androphonomania/MidiJsons/main/"..songname..".json")
+	local json = game:GetService("HttpService"):GetAsync("https://raw.githubusercontent.com/TheFakeFew/MidiJsons/main/"..songname..".json")
 	if(not json)then
 		return nil
 	end
@@ -147,15 +149,32 @@ local plr = owner
 if(not getfenv().owner)then
 	plr = script.Parent:IsA("PlayerGui") and script.Parent.Parent or game:GetService('Players'):GetPlayerFromCharacter(script.Parent)
 end
+
 local families = {
-	["piano"] = {
-		["acoustic grand piano"] = "rbxassetid://5924276201",
-		["standard"] = "rbxassetid://5924276201"
-	},
-	["drums"] = {
-		["standard kit"] = "rbxassetid://31173820"
-	}
+	["standard kit"] = {"rbxassetid://31173820", settings = {["Gain"] = 0.1}},
+	["acoustic grand piano"] = {"rbxassetid://5924276201", settings = {["Gain"] = 0, ["Offset"] = -7}},
+	["bright acoustic piano"] = {"rbxassetid://5924276201", settings = {["Gain"] = 0, ["Offset"] = -7}},
+	["electric grand piano"] = {"rbxassetid://5924276201", settings = {["Gain"] = 0, ["Offset"] = -7}},
+	["electric piano 1"] = {"rbxassetid://5924276201", settings = {["Gain"] = 0, ["Offset"] = -7}},
+	["electric piano 2"] = {"rbxassetid://5924276201", settings = {["Gain"] = 0, ["Offset"] = -7}},
+	["harpsichord"] = {"rbxassetid://109618842", settings = {["Offset"] = -12}},
+	["lead 1 (square)"] = {"rbxassetid://9040512330", settings = {["Gain"] = -0.2, ["Loop"] = true, ["Offset"] = 3}},
+	["lead 2 (sawtooth)"] = {"rbxassetid://9040512075", settings = {["Gain"] = -0.2, ["Loop"] = true, ["Offset"] = 3}},
+	["lead 3 (calliope)"] = {"rbxassetid://9040512197", settings = {["Gain"] = -0.2, ["Loop"] = true, ["Offset"] = 3}},
+	["lead 4 (chiff)"] = {"rbxasset://Sounds/bass.wav"},
+	["lead 5 (charang)"] = {"rbxasset://Sounds/bass.wav"},
+	["lead 6 (voice)"] = {"rbxasset://Sounds/bass.wav"},
+	["lead 7 (fifths)"] = {"rbxasset://Sounds/bass.wav"},
+	["lead 8 (bass + lead)"] = {"rbxassetid://9085536418", settings = {["Gain"] = -0.2, ["Loop"] = true, ["Offset"] = 3}},
+	["sitar"] = {"rbxassetid://12857654"},
+	["banjo"] = {"rbxassetid://12857654"},
+	["shamisen"] = {"rbxasset://Sounds/electronicpingshort.wav"},
+	["koto"] = {"rbxassetid://12857654"},
+	["kalimba"] = {"rbxassetid://13414758"},
+	["bag pipe"] = {"rbxasset://Sounds/electronicpingshort.wav"},
+	["fiddle"] = {"rbxassetid://12857654"}
 }
+
 local chr = plr.Character
 local rootpart = chr:WaitForChild("HumanoidRootPart")
 UI.Parent = chr
@@ -177,7 +196,6 @@ function playsong(songname)
 			print("Song doesnt exist.")
 		end
 		print("loaded "..songname)
-		local bpm = 60/data.header.tempos[1].bpm
 		local tracks = data.tracks
 		local notenum = 0
 		local numofnotes = 0
@@ -187,25 +205,41 @@ function playsong(songname)
 		textlb.Text = notenum.."/"..numofnotes
 		for i,v in next, tracks do
 			local id = "rbxassetid://0"
-			print(v.instrument.family,v.instrument.name)
-			if(families[v.instrument.family] and families[v.instrument.family][v.instrument.name])then
-				id = families[v.instrument.family][v.instrument.name]
+			print(v.instrument.name)
+			if(families[v.instrument.name])then
+				id = families[v.instrument.name]
 			else
-				id = families.piano.standard
+				id = families["acoustic grand piano"]
 			end
 			for i,v in next, v.notes do
 				local thread
 				thread = task.delay(v.time,function()
 					notenum = notenum + 1
 					textlb.Text = notenum.."/"..numofnotes.."\n"..v.time.."\n"..2^((v.midi-69)/12)
+					local settings = id.settings
 					local snd = Instance.new("Sound",rootpart)
 					snd.Volume = v.velocity
-					snd.SoundId = id
-					snd.Looped = true
+					if(settings and settings["Gain"])then
+						snd.Volume += settings["Gain"]
+					end
+					snd.SoundId = id[1]
+					if(settings and settings["Loop"])then
+						snd.Looped = settings["Loop"]
+					end
+					if(settings and settings["Offset"])then
+						v.midi += settings["Offset"]
+					end
 					snd.Pitch = 2^((v.midi-69)/12)
 					snd.Name = v.name
 					snd:Play()
-					task.delay(v.duration,snd.Destroy,snd)
+					task.delay(v.duration,function()
+						local tw = game:GetService("TweenService"):Create(snd,TweenInfo.new(.1),{
+							Volume = 0
+						})
+						tw:Play()
+						tw.Completed:Wait()
+						snd:Destroy()
+					end)
 				end)
 				table.insert(songs,thread)
 			end
@@ -220,10 +254,8 @@ game:GetService('RunService').Heartbeat:Connect(function()
 end)
 playsong("Roblox_Theme")
 plr.Chatted:Connect(function(message)
-	if(message:sub(1,5) == "play!")then
+	if(string.lower(message:sub(1,5)) == "play!")then
 		local name = string.split(message,"!")[2]
 		playsong(name)
-	elseif message:sub(1,9) == "getsongs!" then
-		
 	end
 end)
